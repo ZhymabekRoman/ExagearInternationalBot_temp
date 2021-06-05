@@ -1,12 +1,14 @@
 import discord
-import json
-from googletrans import Translator
-from discord import Embed
+# import json
+from translatepy.translators.yandex import YandexTranslate
+# from googletrans import Translator
+# from discord import Embed
 from icecream import ic
 # from discord.ext import commands
 
 TOKEN = "ODMwNTAzMTE5MzEzNjk4ODc2.YHHoTQ.sJF_g6jWPX_vOMYWRc0xlMIKXc4"
-translator = Translator()
+# translator = Translator()
+translator = YandexTranslate()
 
 # bot = commands.Bot(command_prefix=('/'))
 
@@ -58,11 +60,11 @@ async def translate_message(message):
                 if not message.content:
                     text = "Нечего переводить, пустое сообщение / Nothing to translate, empty message "
                 else:
-                    text = translator.translate(message.content, dest="en").text
+                    text = translator.translate(message.content, "en", "ru")
 
                 author = message.author
                 embed = discord.Embed(color=discord.Color.blue(), title="", description="")
-                embed.add_field(name="Translated by Google", value=text, inline=False)
+                embed.add_field(name="Translated by Yandex", value=text, inline=False)
                 embed.set_author(name=author.name, icon_url=str(author.avatar_url))
                 embed.set_footer(text=f"via #{message.channel.name}")
                 channel = client.get_channel(int(channe_2))
@@ -71,11 +73,11 @@ async def translate_message(message):
                 if not message.content:
                     text = "Нечего переводить, пустое сообщение / Nothing to translate, empty message "
                 else:
-                    text = translator.translate(message.content, dest="ru").text
+                    text = translator.translate(message.content, "ru", "en")
 
                 author = message.author
                 embed = discord.Embed(color=discord.Color.blue(), title="", description="")
-                embed.add_field(name="Translated by Google", value=text, inline=False)
+                embed.add_field(name="Translated by Yandex", value=text, inline=False)
                 embed.set_author(name=author.name, icon_url=str(author.avatar_url))
                 embed.set_footer(text=f"via #{message.channel.name}")
 
