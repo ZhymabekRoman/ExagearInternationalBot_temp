@@ -1,20 +1,17 @@
-import discord
-# import json
+import os
+import nextcord
 from translatepy.translators.yandex import YandexTranslate
-# from googletrans import Translator
-# from discord import Embed
 from icecream import ic
-# from discord.ext import commands
 
-TOKEN = "ODMwNTAzMTE5MzEzNjk4ODc2.YHHoTQ.sJF_g6jWPX_vOMYWRc0xlMIKXc4"
-# translator = Translator()
+TOKEN = os.environ.get("TOKEN")
+
+assert TOKEN is not None, "You dont specified Discord bot token"
+
 translator = YandexTranslate()
 
-# bot = commands.Bot(command_prefix=('/'))
+client = nextcord.Client()
 
-client = discord.Client()
-
-global_registred_chanels = []
+registred_chanels = []
 
 
 @client.event
@@ -22,16 +19,17 @@ async def on_message(message):
     ic(message)
     ic(message.content)
 
-    if message.content.startswith('/'):
+    if message.author.bot:
+        return
+
+    if message.content.startswith('/bot_'):
         await processing_bot_commands(message)
-    elif message.author.bot:
-        pass
     else:
         await translate_message(message)
 
 
 async def processing_bot_commands(message):
-    cmd = message.content.split()[0].replace("/", "")
+    cmd = message.content.split()[0].replace("/bot_", "")
     if len(message.content.split()) > 1:
         parameters = message.content.split()[1:]
     else:
@@ -49,44 +47,46 @@ async def processing_bot_commands(message):
 async def on_ready():
     print("Дискорд бот успешно запущен!")
 
+async def generate_embed(message, text):
+    embed = nextcord.Embed(color=nextcord.Color.blue(), title="", description="")
+    embed.add_field(name="Translated by Yandex", value=text, inline=False)
+    embed.set_author(name=message.author.name)
+    embed.set_footer(text=f"from #{message.channel.name}")
+    
+    if len(message.attachments) > 0:
+        for attach in message.attachments:
+            embed.set_image(url=attach.url)
+
+    return embed
+
 
 async def translate_message(message):
-    for channel_couple in global_registred_chanels:
+    nothing_to_translate_text = "Нечего переводить, пустое сообщение / Nothing to translate, empty message "
+    for channel_couple in registred_chanels:
             channe_1 = channel_couple["channel_1"]
             channe_2 = channel_couple["channel_2"]
-            ic(channe_1)
-            ic(message.channel.id)
             if channe_1 == str(message.channel.id):
                 if not message.content:
-                    text = "Нечего переводить, пустое сообщение / Nothing to translate, empty message "
+                    text = nothing_to_translate_text
                 else:
-                    text = translator.translate(message.content, "en", "ru")
+                    text = translator.translate(message.content, "en", "ru").result
+                
+                embed = await generate_embed(message, text)
 
-                author = message.author
-                embed = discord.Embed(color=discord.Color.blue(), title="", description="")
-                embed.add_field(name="Translated by Yandex", value=text, inline=False)
-                embed.set_author(name=author.name, icon_url=str(author.avatar_url))
-                embed.set_footer(text=f"via #{message.channel.name}")
                 channel = client.get_channel(int(channe_2))
                 await channel.send(embed=embed)
+                return
             elif channe_2 == str(message.channel.id):
                 if not message.content:
-                    text = "Нечего переводить, пустое сообщение / Nothing to translate, empty message "
+                    text = nothing_to_translate_text
                 else:
-                    text = translator.translate(message.content, "ru", "en")
+                    text = translator.translate(message.content, "ru", "en").result
 
-                author = message.author
-                embed = discord.Embed(color=discord.Color.blue(), title="", description="")
-                embed.add_field(name="Translated by Yandex", value=text, inline=False)
-                embed.set_author(name=author.name, icon_url=str(author.avatar_url))
-                embed.set_footer(text=f"via #{message.channel.name}")
-
-                if len(message.attachments) > 0:
-                    for attach in message.attachments:
-                        embed.set_image(url=attach.url)
+                embed = await generate_embed(message, text)
 
                 channel = client.get_channel(int(channe_1))
                 await channel.send(embed=embed)
+                return
 
 
 async def connect_chanel_cmd(message, parameters):
@@ -102,32 +102,13 @@ async def connect_chanel_cmd(message, parameters):
             normalized_parametrs.append(norm_params)
 
         connect_channel_data = {"channel_1": normalized_parametrs[0], "channel_2": normalized_parametrs[1]}
-        global_registred_chanels.append(connect_channel_data)
+        registred_chanels.append(connect_channel_data)
         await message.channel.send("Каналы успешно зарегистрированы в базе!")
         ic(connect_channel_data)
 
 
 async def disconnect_chanel_cmd(message):
-    pass
+    ...
 
 
-"""
-@bot.command()
-async def test1(ctx):
-    embed = discord.Embed(
-        title="Привет всем!",
-    )
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def lolzsait(ctx):
-    embed = discord.Embed(
-        title="Тык для перехода",
-        description="Ссылка для перехода на lolz",
-        url='https://lolz.guru',
-    )
-    await ctx.send(embed=embed)
-
-"""
 client.run(TOKEN)
-# bot.run(TOKEN)
