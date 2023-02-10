@@ -5,44 +5,73 @@ from loguru import logger
 
 from sqlalchemy.exc import IntegrityError
 
-from bot import bot, TOKEN
+from bot import bot, translator, TOKEN
 from bot.models.channel import Channel
 
 # Error: discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
 # Explanation: If your processing takes more than 3 seconds the interaction expires unless you defer
 
 
-
-@bot.slash_command(name="connect_channel", description="Connect channels to translators/ Подключить каналы к переводчику")
+@bot.slash_command(name="connect-channel", description="Connect channels to translators/ Подключить каналы к переводчику")
 @option("russian_channel", discord.TextChannel, description="Select a Russian-language channel / Выберите русскоязычный канал")
 @option("english_channel", discord.TextChannel, description="Select a English-language channel / Выберите англоязычный канал")
 async def connect_chanel_cmd(ctx: discord.ApplicationContext, russian_channel: discord.TextChannel, english_channel: discord.TextChannel):
-    try:
-        channel = Channel.create(channel_id=ctx.interaction.channel_id, russian_channel_id=russian_channel.id, english_channel_id=english_channel.id)
-    except IntegrityError:
-        ic(1)
+    ic(ctx)
+    if russian_channel.id == english_channel.id:
+        message_text = ["Ошибка! Вы пытаетесь зарегистрировать два одинаковых канала!"]
+    else:
+      try:
+        channel = Channel.create(server_id=ctx.interaction.guild.id, russian_channel_id=russian_channel.id, english_channel_id=english_channel.id)
+      except IntegrityError:
         message_text = [
             "Ошибка! Один из каналов уже зарегистрирован в базе"
         ]
-    except Exception as ex:
-        ic(2)
+      except Exception as ex:
         message_text = [
             f"Ошибка! {ex}"
         ]
-    else:
-        ic(3)
+      else:
         message_text = [
             f"Каналы '{russian_channel.mention}' и '{english_channel.mention}' успешно заригестрированы в базе переводчика",
         ]
-    ic(ctx.interaction)
-    ic(ctx.command)
-    ic(english_channel.__repr__)
     await ctx.respond("\n".join(message_text))
 
 
+@bot.slash_command(name="settings-translate", description="Settings / Настройки")
+async def option_list(ctx):
+    if not ctx.author.guild_permissions.manage_messages:
+        await ctx.respond("You don't have admin permission")
+        return
+
+    await ctx.respond("Default translate service", view=SettingsView())
+
+
+class SettingsView(discord.ui.View):
+    @discord.ui.select(
+        placeholder = "Please select translate service",
+        min_values = 1,
+        max_values = 1,
+        options = [
+            discord.SelectOption(
+                label="Yandex",
+                description="Accurate translate service",
+                default=True
+            ),
+            discord.SelectOption(
+                label="DeepL",
+                description="Very accurate translate service, but has a lot limmitation by usage"
+            ),
+            discord.SelectOption(
+                label="Google",
+                description="Good old translate service"
+            )
+        ]
+    )
+    async def select_callback(self, select, interaction):
+        await interaction.response.send_message(f"Awesome! I like {select.values[0]} too!")
 
 async def generate_embed(message, text):
-    embed = nextcord.Embed(color=nextcord.Color.blue(), title="", description="")
+    embed = discord.Embed(color=discord.Color.blue(), title="", description="")
     embed.add_field(name="Translated by Yandex", value=text, inline=False)
     embed.set_author(name=message.author.name)
     embed.set_footer(text=f"from #{message.channel.name}")
@@ -54,12 +83,22 @@ async def generate_embed(message, text):
     return embed
 
 
-async def translate_message(message):
+# async def translate_message(message):
+@bot.event
+async def on_message(message):
+    ic(message)
+    registred_chanels = Channel.where(server_id=message.guild.id).all()
+
+    if not registred_chanels or message.author.bot:
+        return
+
     nothing_to_translate_text = "Нечего переводить, пустое сообщение / Nothing to translate, empty message "
     for channel_couple in registred_chanels:
-        channe_1 = channel_couple["channel_1"]
-        channe_2 = channel_couple["channel_2"]
-        if channe_1 == str(message.channel.id):
+        ic(str(channel_couple))
+        channe_1 = channel_couple.russian_channel_id
+        channe_2 = channel_couple.english_channel_id
+        if channe_1 == message.channel.id:
+            ic(111111)
             if not message.content:
                 text = nothing_to_translate_text
             else:
@@ -67,10 +106,11 @@ async def translate_message(message):
 
             embed = await generate_embed(message, text)
 
-            channel = client.get_channel(int(channe_2))
+            channel = bot.get_channel(channe_2)
             await channel.send(embed=embed)
             return
-        elif channe_2 == str(message.channel.id):
+        elif channe_2 == message.channel.id:
+            ic(2222222222222)
             if not message.content:
                 text = nothing_to_translate_text
             else:
@@ -78,31 +118,9 @@ async def translate_message(message):
 
             embed = await generate_embed(message, text)
 
-            channel = client.get_channel(int(channe_1))
+            channel = bot.get_channel(channe_1)
             await channel.send(embed=embed)
             return
-
-
-async def connect_chanel_cmd(message, parameters):
-    if not parameters or len(parameters) != 2:
-        await message.channel.send("Укажите пожалуйста параметры команды по синтаксису: connect_channel <1_канал> <2_канал>")
-    elif len(parameters) == 2:
-        normalized_parametrs = []
-
-        for parameter in parameters:
-            norm_params = parameter.replace("#", "")
-            norm_params = norm_params.replace("<", "")
-            norm_params = norm_params.replace(">", "")
-            normalized_parametrs.append(norm_params)
-
-        connect_channel_data = {"channel_1": normalized_parametrs[0], "channel_2": normalized_parametrs[1]}
-        registred_chanels.append(connect_channel_data)
-        await message.channel.send("Каналы успешно зарегистрированы в базе!")
-        ic(connect_channel_data)
-
-
-async def disconnect_chanel_cmd(message):
-    ...
 
 
 bot.run(TOKEN)

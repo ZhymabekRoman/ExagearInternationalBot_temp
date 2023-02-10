@@ -1,6 +1,6 @@
 import os
 
-TOKEN = os.environ.get("TOKEN")
+TOKEN = os.environ.get("DISCORD_TOKEN")
 assert TOKEN, "You don't specified Discord bot token"
 
 import discord  # pycord
@@ -31,7 +31,7 @@ loop = asyncio.get_event_loop()
 
 
 translator = YandexTranslate()
-bot = commands.Bot()
+bot = commands.Bot(intents=discord.Intents.all())
 
 
 @bot.event
