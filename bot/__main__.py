@@ -22,7 +22,8 @@ async def connect_chanel_cmd(ctx: discord.ApplicationContext, russian_channel: d
     else:
       try:
         channel = Channel.create(server_id=ctx.interaction.guild.id, russian_channel_id=russian_channel.id, english_channel_id=english_channel.id)
-      except IntegrityError:
+      except IntegrityError as ex:
+        ic(ex)
         message_text = [
             "Ошибка! Один из каналов уже зарегистрирован в базе"
         ]
